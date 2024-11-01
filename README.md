@@ -1,3 +1,29 @@
+# DEBUG
+
+Author contact: eku@anl.gov
+
+Main entry script: Megatron-DeepSpeed/examples_deepspeed/sequence_parallel/ds_debug_gpt.sh
+
+Purpose of the commit:
+1. Fixed stochastic componenets such as data consistency, dropout, etc.
+
+Problem:
+1. Loss discrepency between DP, TP, PP, SP, Zero0123
+
+Weird Behavior:
+1. Memory footprint: Zero1 = Zero2 < Zero3.
+
+Loss plot:
+https://api.wandb.ai/links/kuetal/5swxebyv
+
+System:
+1. Polaris-cluster (A100x4 per node)
+
+ENV:
+1. torch=2.3.0
+2. deepspeed=0.15.1
+
+
 ## Latest News
 * [2023/07] Synced with [upstream](https://github.com/NVIDIA/Megatron-LM) over 1k commits, see [rebase folder for more details](https://github.com/microsoft/Megatron-DeepSpeed/tree/main/examples_deepspeed/rebase) in terms of features and updated performance.
 

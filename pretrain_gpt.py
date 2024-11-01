@@ -104,6 +104,18 @@ def get_batch(data_iterator):
         data = next(data_iterator)
     else:
         data = None
+
+    if "DATA_PATH_LOG" in os.environ: ## We want to make sure the data fetched are the same across all comparisons.
+        rank = torch.distributed.get_rank()
+        dp = mpu.get_data_parallel_world_size()
+        dp_rank = mpu.get_data_parallel_rank()
+        dp_src_rank = mpu.get_data_parallel_src_rank()
+
+        with open(os.environ["DATA_PATH_LOG"], mode='a') as file:
+            for i in range(dp):
+                if dp_src_rank == 0 and i == dp_rank: ## print data sequentially for easier comparison
+                    file.write(f"(rank{rank}) tokens: {data['text']}\n")
+                torch.distributed.barrier()
     data_b = tensor_parallel.broadcast_data(keys, data, datatype)
 
     # Unpack.

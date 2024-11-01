@@ -59,6 +59,7 @@ from deepspeed.runtime.data_pipeline.data_routing.helper import convert_to_rando
 from megatron.model.transformer import ParallelTransformerLayer
 
 from deepspeed import comm as dist
+import os
 
 def print_datetime(string):
     """Note that this call will sync across all ranks."""
@@ -1245,6 +1246,36 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
     if args.random_ltd:
         assert model[0].random_ltd_enabled()
         args.random_ltd_layer_num = model[0].random_ltd_scheduler.get_random_ltd_layer_num()
+    ## DeepSpeed Flops profiler's TFLOPS seem too low? 
+    def num_floating_point_operations(args, batch_size):
+        # Group Query Attention.
+        # if not args.group_query_attention:
+        if not args.num_key_value_heads:
+            args.num_key_value_heads = args.num_attention_heads
+            # args.num_query_groups = args.num_attention_heads
+        # MoE.
+        # num_experts_routed_to = 1 if args.num_experts is None else args.moe_router_topk
+        num_experts_routed_to = 1 if args.num_experts is None else args.topk
+        gated_linear_multiplier = 3 / 2 if args.swiglu else 1
+        return (
+            12
+            * batch_size
+            * args.seq_length
+            * args.num_layers
+            * args.hidden_size
+            * args.hidden_size
+            * (
+                1
+                + (
+                    (args.ffn_hidden_size / args.hidden_size)
+                    * num_experts_routed_to
+                    * gated_linear_multiplier
+                )
+                + (args.num_key_value_heads / args.num_attention_heads)
+                + (args.seq_length / args.hidden_size)
+                + (args.padded_vocab_size / (2 * args.num_layers * args.hidden_size))
+            )
+        )
         
     while iteration < args.train_iters and (args.train_tokens is None or \
         args.consumed_train_tokens < args.train_tokens):
@@ -1256,6 +1287,8 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                                 args.micro_batch_size * \
                                 get_num_microbatches()
             model[0].set_train_batch_size(global_batch_size)
+            tot_Tflops = num_floating_point_operations(args, global_batch_size) / 1000**4
+            strt = time.time()
 
         if args.curriculum_learning_legacy and not args.no_pipeline_parallel:
             curriculum_seqlen = args.curriculum_scheduler.update_difficulty( \
@@ -1265,6 +1298,13 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                     update_rotary_pos_emb(curriculum_seqlen)
             args.curriculum_seqlen = curriculum_seqlen
         args.curr_iteration = iteration
+
+        if "DATA_PATH_LOG" in os.environ:
+            args = get_args()
+            if args.rank == 0:
+                with open(os.environ["DATA_PATH_LOG"], "a") as file:
+                    file.write("\n" + "#"*30 + f" iter {iteration} " + f"#"*30 + "\n")
+                    file.flush()
         loss_dict, skipped_iter, grad_norm, num_zeros_in_grad = \
             train_step(forward_step_func,
                        train_data_iterator,
@@ -1381,6 +1421,13 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                            f"iteration={iteration}. Exiting")
             sys.exit()
 
+        memory_tensor = torch.cuda.max_memory_allocated() / (1024**3) ## need reduce comm for more accurate measure.
+        step_time = time.time() - strt
+        samples_per_sec = global_batch_size / step_time
+        print_rank_0(f"iteration:{iteration} \t"
+                f"TFLOPS:{tot_Tflops / step_time:.2f} \t"
+                f"Samples/Sec:{samples_per_sec:.2f} \t"
+                f"Max_memory:{memory_tensor:.2f}" )
     return iteration
 
 
