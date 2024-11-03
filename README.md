@@ -5,10 +5,10 @@ Author contact: eku@anl.gov
 Main entry script: Megatron-DeepSpeed/examples_deepspeed/sequence_parallel/ds_debug_gpt.sh
 
 Purpose of the commit:
-1. Fixed stochastic componenets such as data consistency, dropout, etc. However, TP had different weigh initialization due to its sharded weights. 
+1. Fixed stochastic componenets such as data consistency, dropout, etc. However, TP had different weigh initialization due to its sharded weights. Then the model parallelisms look reconciled for 
 
 Problem:
-1. Loss discrepency between DP, TP, PP, SP, Zero0123
+1. Loss discrepency between Zero0123. TP, PP, DP, SP seem to reconcile enough given that TP has different weight init?
 
 Weird Behavior:
 1. Memory footprint: Zero1 = Zero2 < Zero3.
