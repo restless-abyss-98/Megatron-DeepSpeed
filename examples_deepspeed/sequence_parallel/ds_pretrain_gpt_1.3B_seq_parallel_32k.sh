@@ -1,9 +1,9 @@
 #!/bin/bash
-dir=/eagle/datascience/eku/MDS-VIT-CLEAN/examples_deepspeed/sequence_parallel
+dir=/eagle/datascience/eku/MDS-VIT-CLEAN/examples_deepspeed/sequence_parallel ## TODO: CHANGE THIS
 cd $dir
-module load conda
-conda activate base
-. ~/venv/stable_ds15.1/bin/activate
+# module load conda
+# conda activate base
+. ~/venv/stable_ds15.1/bin/activate ## TODO: CHANGE THIS. deepspeed == 0.15.3
 
 if [[ $DATA_PATH_LOG ]]; then
     > $DATA_PATH_LOG
@@ -380,4 +380,20 @@ if [[ $iteration -gt 0 ]]; then
     ds_ssh "echo $iteration_2 > $iteration_file_2"
 fi
 
-deepspeed ${dir}/../../pretrain_gpt.py ${megatron_options} ${data_options} ${deepspeed_options} 2>&1 | tee ${log_path}/${jobname}_${host}_${current_time}.log
+## ValueError: Hostfile contains a bad entry:
+# deepspeed --num_nodes=${num_node} --num_gpus=${num_gpus} --hostfile=${PBS_NODEFILE} \
+#     ${dir}/../../pretrain_gpt.py \
+#     ${megatron_options} \
+#     ${data_options} \
+#     ${deepspeed_options} \
+#     2>&1 | tee ${log_path}/${jobname}_${host}_${current_time}.log
+
+## Vaino's
+export RDZV_HOST=$(hostname)
+export RDZV_PORT=29400
+export WORLD_SIZE=8
+mpiexec --verbose --envall -n 2 -ppn 1 --cpu-bind depth -d 8 \
+        python3 -m torch.distributed.run --rdzv_backend=c10d --rdzv_endpoint="$RDZV_HOST:$RDZV_PORT" --nnodes=2 --nproc_per_node=4 ${dir}/../../pretrain_gpt.py \
+        ${megatron_options} \
+        ${data_options} \
+        ${deepspeed_options} \
