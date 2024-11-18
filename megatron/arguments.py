@@ -66,6 +66,12 @@ def parse_args(extra_args_provider=None, ignore_unknown_args=False):
     args.rank = int(os.getenv('RANK', '0'))
     args.world_size = int(os.getenv("WORLD_SIZE", '1'))
 
+    # Args for USP
+    args.USP_ulysses = int(os.getenv("USP_ulysses", '0'))
+    args.USP_ring = int(os.getenv("USP_ring", '0'))
+    args.USP_hybrid = int(os.getenv("USP_hybrid", '0'))
+    args.use_unifiedSP = (args.USP_ulysses or args.USP_ring or args.USP_hybrid)
+
     return args
 
 def validate_args(args, defaults={}):

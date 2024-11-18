@@ -1,9 +1,22 @@
 #!/bin/bash
-dir=`pwd`
+dir=/eagle/datascience/eku/MDS-VIT-CLEAN/examples_deepspeed/sequence_parallel ## TODO: CHANGE THIS
+cd $dir
+# module load conda
+# conda activate base
+. ~/venv/stable_ds15.1/bin/activate ## TODO: CHANGE THIS. deepspeed == 0.15.3
+YUNCHANG_DIR=$(realpath $dir/../../long-context-attention)
+export PYTHONPATH="$YUNCHANG_DIR:$PYTHONPATH" ## Add yunchang (USP)
+
+if [[ $DATA_PATH_LOG ]]; then
+    > $DATA_PATH_LOG
+fi
 ###############################################################################
 ### Main configs
 ## GPT-3 models use 2K sequence length/context window
-seq_len=32768
+# seq_len=32768
+export seq_len=512
+train_iter=${train_iter:-15}
+export global_batch_size=8
 
 ## The "GPT-3 XXX" below are configs from GPT-3 paper
 ## https://arxiv.org/abs/2005.14165, choose based on
@@ -16,90 +29,99 @@ seq_len=32768
 ## We changed min_lr to a lower number (1.0e-6), which we found is able to
 ## provide better zero-shot eval results.
 
-## GPT-3 Small 125M
-# model_size=0.125
-# num_layers=12
-# hidden_size=768
-# num_attn_heads=12
-# global_batch_size=256
-# lr=6.0e-4
-# min_lr=1.0e-6
-# init_std=0.02
+if [[ $MODEL == "SMALL" ]]; then
+    ## GPT-3 Small 125M
+    model_size=0.125
+    num_layers=12
+    hidden_size=768
+    num_attn_heads=12
+    lr=6.0e-4
+    min_lr=1.0e-6
+    init_std=0.02
+else
+    ## GPT-3 Medium 350M
+    # model_size=0.35
+    # num_layers=24
+    # hidden_size=1024
+    # num_attn_heads=16
+    # lr=3.0e-4
+    # min_lr=1.0e-6
+    # init_std=0.018
 
-## GPT-3 Medium 350M
-# model_size=0.35
-# num_layers=24
-# hidden_size=1024
-# num_attn_heads=16
-# global_batch_size=256
-# lr=3.0e-4
-# min_lr=1.0e-6
-# init_std=0.018
+    ## GPT-3 Large 760M
+    # model_size=0.76
+    # num_layers=24
+    # hidden_size=1536
+    # num_attn_heads=16
+    # lr=2.5e-4
+    # min_lr=1.0e-6
+    # init_std=0.015
 
-## GPT-3 Large 760M
-# model_size=0.76
-# num_layers=24
-# hidden_size=1536
-# num_attn_heads=16
-# global_batch_size=256
-# lr=2.5e-4
-# min_lr=1.0e-6
-# init_std=0.015
+    ## GPT-3 XL 1.3B
+    model_size=1.3
+    num_layers=24
+    hidden_size=2048
+    num_attn_heads=16
+    lr=2.0e-4
+    min_lr=1.0e-6
+    init_std=0.013
 
-## GPT-3 XL 1.3B
-model_size=1.3
-num_layers=24
-hidden_size=2048
-num_attn_heads=16
-global_batch_size=2
-lr=2.0e-4
-min_lr=1.0e-6
-init_std=0.013
+    ## GPT-3 2.7B
+    # model_size=2.7
+    # num_layers=32
+    # hidden_size=2560
+    # num_attn_heads=32
+    # global_batch_size=512
+    # lr=1.6e-4
+    # min_lr=1.0e-6
+    # init_std=0.011
 
-## GPT-3 2.7B
-# model_size=2.7
-# num_layers=32
-# hidden_size=2560
-# num_attn_heads=32
-# global_batch_size=512
-# lr=1.6e-4
-# min_lr=1.0e-6
-# init_std=0.011
+    ## GPT-3 6.7B
+    # model_size=6.7
+    # num_layers=32
+    # hidden_size=4096
+    # num_attn_heads=32
+    # global_batch_size=1024
+    # lr=1.2e-4
+    # min_lr=1.0e-6
+    # init_std=0.009
 
-## GPT-3 6.7B
-# model_size=6.7
-# num_layers=32
-# hidden_size=4096
-# num_attn_heads=32
-# global_batch_size=1024
-# lr=1.2e-4
-# min_lr=1.0e-6
-# init_std=0.009
+    ## GPT-3 8B
+    # model_size=8
+    # num_layers=32
+    # hidden_size=4096
+    # num_attn_heads=32
+    # global_batch_size=1024
+    # lr=1.2e-4
+    # min_lr=1.0e-6
+    # init_std=0.009
 
-## GPT-3 13B
-# model_size=13
-# num_layers=40
-# hidden_size=5120
-# num_attn_heads=40
-# global_batch_size=1024
-# lr=1.0e-4
-# min_lr=1.0e-6
-# init_std=0.008
+    ## GPT-3 13B
+    # model_size=13
+    # num_layers=40
+    # hidden_size=5120
+    # num_attn_heads=40
+    # global_batch_size=1024
+    # lr=1.0e-4
+    # min_lr=1.0e-6
+    # init_std=0.008
 
-## GPT-3 175B
-# model_size=175
-# num_layers=96
-# hidden_size=12288
-# num_attn_heads=96
-# global_batch_size=1536
-# lr=0.6e-4
-# min_lr=1.0e-6
-# init_std=0.005
+    ## GPT-3 175B
+    # model_size=175
+    # num_layers=96
+    # hidden_size=12288
+    # num_attn_heads=96
+    # global_batch_size=1536
+    # lr=0.6e-4
+    # min_lr=1.0e-6
+    # init_std=0.005
+fi
+
 ###############################################################################
 ### Training duration configs
 ## The main termination condition, original GPT-3 paper trains for 300B tokens.
 train_tokens_in_billion=300
-train_tokens=$((${train_tokens_in_billion} * 1000000000))
+train_tokens=$(($seq_len * $global_batch_size * $train_iter)) ## termination condition
 
 ## train_samples is another termination condition and also affect the number of 
 ## data samples to be indexed. Since we want to reach the train_tokens
@@ -119,15 +141,15 @@ exit_duration=30000000
 ## used, there are more tokens per step. Thus we need to increase warmup tokens
 ## to make sure there are enough warmup steps, which is important for training
 ## stability.
-lr_warmup_tokens_in_million=3000
-lr_warmup_tokens=$((${lr_warmup_tokens_in_million} * 1000000))
+# lr_warmup_tokens_in_million=3000
+# lr_warmup_tokens=$((${lr_warmup_tokens_in_million} * 1000000))
 ## Here we changed the LR decay tokens to align with total train tokens, since
 ## related works (e.g., https://arxiv.org/abs/2203.15556) find that setting the
 ## learning rate schedule to match the number of training tokens results in the
 ## best final model quality 
-lr_decay_tokens_in_billion=${train_tokens_in_billion}
-lr_decay_tokens=$((${lr_decay_tokens_in_billion} * 1000000000))
-lr_decay_style="cosine"
+# lr_decay_tokens_in_billion=${train_tokens_in_billion}
+# lr_decay_tokens=$((${lr_decay_tokens_in_billion} * 1000000000))
+# lr_decay_style="cosine"
 ###############################################################################
 ### Parallelism configs
 ## Model parallelism, 1 is no MP
@@ -135,35 +157,42 @@ lr_decay_style="cosine"
 mp_size=1
 
 ## Sequence parallelism, 1 is no SP
-sp_size=4
+sp_size=${sp_size:-1}
 
 ## Pipeline parallelism. To disable PP, set pp_size to 1 and no_pp to true.
 ## Note that currently both curriculum learning and random-LTD are NOT
 ## compatible with pipeline parallelism.
 pp_size=1
+tp_size=${tp_size:-1}
 no_pp="true"
 
 ## ZeRO-based data parallelism, stage=0 will disable ZeRO
-zero_stage=1
+zero_stage=${zero_stage:-0}
 
 ## Total number of GPUs. ds_ssh is from DeepSpeed library.
-num_gpus=$(($(ds_ssh nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)-2))
+# num_gpus=$(($(ds_ssh nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)-2))
 num_gpus_pernode=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
-num_node=$(( ${num_gpus} / ${num_gpus_pernode} ))
+# num_node=$(( ${num_gpus} / ${num_gpus_pernode} ))
+num_node=$(wc -l < "${PBS_NODEFILE}")
+num_gpus=$((num_node * num_gpus_pernode))
+
+echo num_gpus: $num_gpus
+echo num_gpus_pernode: $num_gpus_pernode
+echo num_node: $num_node
 
 ## Data parallel size.
-dp_size=$(( ${num_gpus} / ${pp_size} / ${mp_size} / ${sp_size} ))
+dp_size=$(( ${num_gpus} / ${pp_size} / ${mp_size} / ${sp_size} / ${tp_size}))
+# train_samples=$(($seq_len * 25 * $dp_size)) ## commented og train_samples
 
 ## Micro batch size per GPU
 ## Make sure that batch_size <= global_batch_size*pp_size*mp_size/num_gpus
 ## Reduce it manually if GPU OOM
-# batch_size=$(( ${global_batch_size} / ${dp_size} ))
-batch_size=1
+batch_size=$((${global_batch_size} / ${dp_size}))
 
 ###############################################################################
 ### Misc configs
 log_interval=10
-eval_iters=10
+eval_iters=0
 eval_interval=100
 # num_save controls how frequent to save checkpoint. num_save=20 means that a
 # checkpoint will be saved every 5% of training. For longer training you would
@@ -197,7 +226,8 @@ if [ ! -f "$merge_path" ]; then
 fi
 
 
-data_path="BookCorpusDataset_text_document"
+data_path="/eagle/datascience/eku/Megatron-DeepSpeed_ViT/examples_deepspeed/sequence_parallel/BookCorpusDataset_text_document" ## TODO: Replace with string dataset of your choice. 
+# data_path="BookCorpusDataset_text_document"
 if [ ! -f "BookCorpusDataset_text_document.bin" ]; then
     # Download the Bookcorpus dataset and convert to json
     python preprocess_bookcorpus.py
@@ -255,11 +285,9 @@ megatron_options=" \
     --override-opt_param-scheduler \
     --adam-beta1 0.9 \
     --adam-beta2 0.95 \
-    --tensor-model-parallel-size 1 \
+    --tensor-model-parallel-size ${tp_size} \
     --ds-sequence-parallel-size ${sp_size} \
     --init-method-std ${init_std} \
-    --lr-decay-tokens ${lr_decay_tokens} \
-    --lr-warmup-tokens ${lr_warmup_tokens} \
     --micro-batch-size ${batch_size} \
     --exit-duration-in-mins ${exit_duration} \
     --global-batch-size ${global_batch_size} \
@@ -272,7 +300,6 @@ megatron_options=" \
     --train-samples ${train_samples} \
     --lr ${lr} \
     --min-lr ${min_lr} \
-    --lr-decay-style ${lr_decay_style} \
     --split 949,50,1 \
     --log-interval ${log_interval} \
     --eval-interval ${eval_interval} \
@@ -284,15 +311,31 @@ megatron_options=" \
     --num-workers ${num_workers} \
     --fp16 \
     --seed ${seed} \
-    --load ${checkpoint_path} \
-    --save ${checkpoint_path} \
     --no-async-tensor-model-parallel-allreduce \
-    --use-flash-attn-triton \
     --tensorboard-queue-size 1 \
     --log-timers-to-tensorboard \
     --log-batch-size-to-tensorboard \
-    --log-validation-ppl-to-tensorboard \
-    --tensorboard-dir ${tensorboard_path}"
+    --no-masked-softmax-fusion \
+    --no-gradient-accumulation-fusion \
+    --no-bias-gelu-fusion \
+    --no-bias-dropout-fusion \
+    --accumulate-allreduce-grads-in-fp32 \
+    --save ${checkpoint_path} \
+    --use-flash-attn-v2
+    --attention-dropout 0
+    --hidden-dropout 0
+    "
+    # --load ${checkpoint_path} \
+    # --use-flash-attn-triton \
+    # --log-validation-ppl-to-tensorboard \
+    # --tensorboard-dir ${tensorboard_path} \
+    # --lr-decay-style ${lr_decay_style} \
+
+
+if [[ $TPSP -eq 1 ]]; then
+megatron_options="${megatron_options} \
+    --sequence-parallel"
+fi
 
 if [ "${activation_checkpoint}" = "true" ]; then
 megatron_options="${megatron_options} \
@@ -301,6 +344,7 @@ fi
 
 if [ "${log_optimizer_state}" = "true" ]; then
 megatron_options="${megatron_options} \
+    --wandb-project PolarisLLM-Test
     --log-optimizer-states-to-tensorboard"
 fi
 
@@ -348,4 +392,36 @@ if [[ $iteration -gt 0 ]]; then
     ds_ssh "echo $iteration_2 > $iteration_file_2"
 fi
 
-deepspeed ${dir}/../../pretrain_gpt.py ${megatron_options} ${data_options} ${deepspeed_options} 2>&1 | tee ${log_path}/${jobname}_${host}_${current_time}.log
+export zero_stage=$zero_stage
+export pp_size=$pp_size
+export sp_size=$sp_size
+export tp_size=$tp_size
+export dp_size=$dp_size
+export TPSP=$TPSP
+
+## Cannot get deepspeed launch cmd to work for some reason:
+## passing hostfile asks for my password?
+## Make DeepSpeed hostfile
+# hostfile_deepspeed="${dir}/ds_hostfile"
+# cat "${PBS_NODEFILE}" >"${hostfile_deepspeed}"
+# sed -e "s/$/ slots=${num_gpus_pernode}/" -i "${hostfile_deepspeed}"
+# cat $hostfile_deepspeed
+# exit 1
+# deepspeed --num_nodes=${num_node} --num_gpus=${num_gpus} \
+# deepspeed --num_nodes=${num_node} --num_gpus=${num_gpus} --launcher MPICH \
+# deepspeed --num_nodes=${num_node} --num_gpus=${num_gpus} --hostfile=${hostfile_deepspeed} --launcher MPICH \
+#     ${dir}/../../pretrain_gpt.py \
+#     ${megatron_options} \
+#     ${data_options} \
+#     ${deepspeed_options} \
+#     2>&1 | tee ${log_path}/${jobname}_${host}_${current_time}.log
+
+## Workaround: mpiexec + torchrun (Vaino)
+export RDZV_HOST=$(hostname)
+export RDZV_PORT=29400
+export WORLD_SIZE=${num_gpus}
+mpiexec --verbose --envall -n ${num_node} -ppn 1 --cpu-bind depth -d ${num_gpus} \
+        python3 -m torch.distributed.run --rdzv_backend=c10d --rdzv_endpoint="$RDZV_HOST:$RDZV_PORT" --nnodes=${num_node} --nproc_per_node=${num_gpus_pernode} ${dir}/../../pretrain_gpt.py \
+        ${megatron_options} \
+        ${data_options} \
+        ${deepspeed_options} \
