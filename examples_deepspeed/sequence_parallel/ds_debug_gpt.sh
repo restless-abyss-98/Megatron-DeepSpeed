@@ -4,17 +4,29 @@ ds_script=$SCRIPT_DIR/ds_pretrain_gpt_1.3B_seq_parallel_32k.sh
 
 mkdir -p $LOG_DIR
 
+export PYTHONPATH="/eagle/datascience/eku/MDS-VIT-CLEAN:$PYTHONPATH"
 export train_iter=10
 export drop_last_batch_with_GBS=1   ## reconcile the data order between DP and MP
-# export PROFILE=1                  ## Turn on Torch profiler
+export PROFILE=1                  ## Turn on Torch profiler
 # export TPSP=1                     ## Turn on LM's Sequence Parallelism
 MP=4                                ## Model parallelism degree
 
 ## USP (Working)
-sp_size=$MP  zero_stage=3                             bash $ds_script  ## Deepspeed's Ulysses
+# sp_size=$MP  zero_stage=3                             bash $ds_script  ## Deepspeed's Ulysses
+# sp_size=1  zero_stage=2                             bash $ds_script  ## Deepspeed's Ulysses
+sp_size=1  zero_stage=3                             bash $ds_script  ## Deepspeed's Ulysses
 # sp_size=$MP  zero_stage=2  USP_ulysses=1              bash $ds_script 
 # sp_size=$MP  zero_stage=2  USP_ring=1                 bash $ds_script 
-# sp_size=$MP  zero_stage=2  USP_hybrid=1  MODEL=SMALL  bash $ds_script 
+
+# sp_size=$MP  zero_stage=2  USP_ulysses=1              bash $ds_script 
+# sp_size=$MP  zero_stage=2  USP_ulysses=1  bash $ds_script ## Works for A100x4
+# sp_size=$MP  zero_stage=3  USP_hybrid=1   bash $ds_script ## Works for A100x4
+# sp_size=$MP  zero_stage=2  USP_ulysses=1  MODEL=SMALL  bash $ds_script ## Works for A100x4
+
+# sp_size=$MP  zero_stage=2 bash $ds_script ## Works for A100x4
+# sp_size=$MP  zero_stage=2  MODEL=SMALL  bash $ds_script ## Works for A100x4
+# sp_size=$MP  zero_stage=2  bash $ds_script ## Works for A100x4
+# sp_size=$MP  zero_stage=2  USP_hybrid=1 bash $ds_script ## Works for A100x4
 
 ## USP (Not Working)
 ## USP_hybrid goes OOM early

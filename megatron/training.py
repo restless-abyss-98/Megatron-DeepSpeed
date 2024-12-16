@@ -1295,14 +1295,14 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
 
         print_rank_0(f"PROFILING...")
         p = torch.profiler.profile(
-            schedule=torch.profiler.schedule(wait=5, warmup=2, active=2),
+            schedule=torch.profiler.schedule(wait=1, warmup=1, active=2),
             activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
             record_shapes=True,
             with_stack=True,
             on_trace_ready=trace_handler,
         )
         p.start()
-        args.train_iters = 10
+        args.train_iters = 4
         
     while iteration < args.train_iters and (args.train_tokens is None or \
         args.consumed_train_tokens < args.train_tokens):

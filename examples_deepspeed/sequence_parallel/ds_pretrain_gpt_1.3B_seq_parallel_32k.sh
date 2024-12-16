@@ -14,9 +14,12 @@ fi
 ### Main configs
 ## GPT-3 models use 2K sequence length/context window
 # seq_len=32768
-export seq_len=512
+# export seq_len=512
+export seq_len=4096
+# export seq_len=1
 train_iter=${train_iter:-15}
-export global_batch_size=8
+export global_batch_size=4
+export PROFILE=1
 
 ## The "GPT-3 XXX" below are configs from GPT-3 paper
 ## https://arxiv.org/abs/2005.14165, choose based on
@@ -57,7 +60,7 @@ else
     # min_lr=1.0e-6
     # init_std=0.015
 
-    ## GPT-3 XL 1.3B
+    # ## GPT-3 XL 1.3B
     model_size=1.3
     num_layers=24
     hidden_size=2048
@@ -66,12 +69,11 @@ else
     min_lr=1.0e-6
     init_std=0.013
 
-    ## GPT-3 2.7B
+    # ## GPT-3 2.7B
     # model_size=2.7
     # num_layers=32
     # hidden_size=2560
     # num_attn_heads=32
-    # global_batch_size=512
     # lr=1.6e-4
     # min_lr=1.0e-6
     # init_std=0.011
@@ -167,7 +169,7 @@ tp_size=${tp_size:-1}
 no_pp="true"
 
 ## ZeRO-based data parallelism, stage=0 will disable ZeRO
-zero_stage=${zero_stage:-0}
+zero_stage=${zero_stage:-2}
 
 ## Total number of GPUs. ds_ssh is from DeepSpeed library.
 # num_gpus=$(($(ds_ssh nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)-2))

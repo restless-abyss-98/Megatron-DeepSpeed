@@ -622,13 +622,14 @@ class ParallelAttention(MegatronModule):
                 ## TODO: Goes OOM early compared to other SP. Why? 
                 # from yunchang import AsyncLongContextAttention ## TODO: Async doesn't have backward implemented yet?
                 from yunchang import LongContextAttention, set_seq_parallel_pg
-                sp_pg = mpu.get_sequence_parallel_group()
-                sp_size = mpu.get_sequence_parallel_world_size()
+                # sp_pg = mpu.get_sequence_parallel_group()
+                # sp_size = mpu.get_sequence_parallel_world_size()
                 rank = mpu.get_sequence_data_parallel_rank()
                 world_size = torch.distributed.get_world_size()
-                ## Q. What is use_ulysses_low? What will be the inner SP? 
-                USP_degree = int(sp_size**0.5)
-                set_seq_parallel_pg(sp_ulysses_degree=sp_size, sp_ring_degree=1, rank=rank, world_size=world_size, use_ulysses_low=False)
+                SP_degree = parallel_state.get_sequence_parallel_world_size()
+                SPU_degree = int(SP_degree**0.5)
+                SPR_degree = SP_degree // SPU_degree
+                set_seq_parallel_pg(sp_ulysses_degree=SPU_degree, sp_ring_degree=SPR_degree, rank=rank, world_size=world_size, use_ulysses_low=False)
                 self.dist_attn = LongContextAttention(ring_impl_type="basic")
             else:
                 assert dist_attn_supported, 'Distributed attention is not supported in this DeepSpeed version'

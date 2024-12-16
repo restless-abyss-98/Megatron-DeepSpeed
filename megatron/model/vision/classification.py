@@ -15,7 +15,7 @@ class VitClassificationModel(MegatronModule):
 
     def __init__(self, config, num_classes, finetune=False,
                  pre_process=True, post_process=True):
-        super(VitClassificationModel, self).__init__()
+        super(VitClassificationModel, self).__init__(config=config)
         args = get_args()
 
         self.hidden_size = args.hidden_size

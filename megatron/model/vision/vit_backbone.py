@@ -196,6 +196,7 @@ class VitBackbone(MegatronModule):
         # Transformer
         self.transformer = ParallelTransformer(
             config,
+            model_type=args.model_type, ## 
             pre_process=self.pre_process,
             post_process=self.post_process,
             post_layer_norm=self.post_layer_norm,
@@ -232,7 +233,7 @@ class VitBackbone(MegatronModule):
         else:
             hidden_states = input
 
-        hidden_states = self.transformer(hidden_states, None)
+        hidden_states = self.transformer(hidden_states, None)[0]
 
         if self.post_process:
             # [s b h] => [b s h]
